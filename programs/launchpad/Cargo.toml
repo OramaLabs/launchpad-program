@@ -1,0 +1,26 @@
+[package]
+name = "launchpad"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "launchpad"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+[dependencies]
+anchor-lang = { version = "0.31.1", features = ["init-if-needed","event-cpi"] }
+anchor-spl = { version = "0.31.1", features = ["metadata"] }
+mpl-token-metadata = "5.1.1"
+cp-amm = { git = "https://github.com/MeteoraAg/damm-v2", features = ["cpi"] }
+bytemuck = { version = "1.13.1", features = ["derive", "min_const_generics"] }
+const-crypto = "0.3.0"
+ruint = "1.14.0"

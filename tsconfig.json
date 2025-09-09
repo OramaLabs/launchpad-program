@@ -1,0 +1,59 @@
+{
+  "compilerOptions": {
+    // 基础配置
+    "target": "es2020",
+    "lib": ["es2020", "dom"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    
+    // 类型定义
+    "types": ["mocha", "chai", "node"],
+    "typeRoots": ["./node_modules/@types", "./types"],
+    
+    // 输出配置
+    "outDir": "./dist",
+    "rootDir": "./",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    
+    // 路径映射（支持IDL类型导入）
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@types/*": ["./types/*"],
+      "@tests/*": ["./tests/*"]
+    },
+    
+    // Anchor特定配置
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    
+    // 更严格的类型检查
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": [
+    "tests/**/*",
+    "migrations/**/*",
+    "app/**/*",
+    "types/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "target",
+    "dist"
+  ],
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  }
+}
