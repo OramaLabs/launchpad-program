@@ -1,0 +1,46 @@
+[toolchain]
+anchor_version = "0.31.1"
+solana_version = "2.2.21"
+package_manager = "pnpm"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+launchpad = "7E22dUYERWbyaqGDTKeU7NfYPRnBuAaVULXJgafxsBHq"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/test.ts"
+
+[test]
+startup_wait = 5000
+shutdown_wait = 2000
+upgradeable = false
+
+[[test.genesis]]
+address = "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG"
+program = "genesis/cp_amm.so"
+
+[test.validator]
+bind_address = "127.0.0.1"
+url = "https://api.mainnet-beta.solana.com"
+ledger = ".anchor/test-ledger"
+rpc_port = 8899
+
+[[test.validator.account]]
+address = "DJN8YHxQKZnF7bL2GwuKNB2UcfhKCqRspfLe7YYEN3rr"
+filename = "genesis/config.json"
+
+[[test.validator.clone]]
+address = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+
+[[test.validator.clone]]
+address = "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo"
