@@ -1,4 +1,5 @@
 pub mod claim_creator_tokens;
+pub mod claim_token_dividends;
 pub mod claim_user_rewards;
 pub mod collect_pool_fees;
 pub mod finalize_launch;
@@ -12,6 +13,7 @@ pub mod unstake_tokens;
 pub mod update_config;
 
 pub use claim_creator_tokens::*;
+pub use claim_token_dividends::*;
 pub use claim_user_rewards::*;
 pub use collect_pool_fees::*;
 pub use finalize_launch::*;

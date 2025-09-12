@@ -53,16 +53,6 @@ impl UserPosition {
         8 + // last_updated
         8 * 8; // reserved
 
-    /// Check if can claim excess SOL
-    pub fn can_claim_excess_sol(&self) -> bool {
-        self.contributed_sol > 0 && !self.excess_sol_claimed && !self.refunded
-    }
-
-    /// Check if can refund
-    pub fn can_refund(&self) -> bool {
-        self.contributed_sol > 0 && !self.refunded && !self.tokens_claimed
-    }
-
     /// Calculate deserved excess SOL
     pub fn calculate_excess_sol(&self, pool_excess: u64, pool_raised: u64) -> Result<u64> {
         // Allocate excess SOL proportionally

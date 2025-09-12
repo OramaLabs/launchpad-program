@@ -27,7 +27,7 @@ pub struct ClaimCreatorTokens<'info> {
     /// Launch pool account, must be migrated
     #[account(
         mut,
-        constraint = launch_pool.status == LaunchStatus::Migrated || launch_pool.status == LaunchStatus::Failed @ LaunchpadError::InvalidStatus,
+        constraint = launch_pool.status == LaunchStatus::Migrated @ LaunchpadError::InvalidStatus,
     )]
     pub launch_pool: Box<Account<'info, LaunchPool>>,
 

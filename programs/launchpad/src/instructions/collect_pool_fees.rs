@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::Token,
+    token::{self, Token, Transfer},
     token_interface::{TokenAccount, TokenInterface},
 };
 
@@ -43,6 +43,11 @@ pub struct ClaimPositionFee<'info> {
     #[account(address = global_config.admin.key())]
     pub treasury: UncheckedAccount<'info>,
 
+    /// Creator account from launch pool
+    /// CHECK: verified against launch_pool.creator
+    #[account(address = launch_pool.creator)]
+    pub creator: UncheckedAccount<'info>,
+
     /// CHECK: pool address
     pub pool: UncheckedAccount<'info>,
 
@@ -50,7 +55,7 @@ pub struct ClaimPositionFee<'info> {
     #[account(mut)]
     pub position: UncheckedAccount<'info>,
 
-    /// The user token a account
+    /// Treasury token a account
     #[account(
         init_if_needed,
         payer = payer,
@@ -58,9 +63,9 @@ pub struct ClaimPositionFee<'info> {
         associated_token::authority = treasury,
         associated_token::token_program = token_a_program,
     )]
-    pub token_a_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub treasury_token_a_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
-    /// The user token b account
+    /// Treasury token b account
     #[account(
         init_if_needed,
         payer = payer,
@@ -68,7 +73,47 @@ pub struct ClaimPositionFee<'info> {
         associated_token::authority = treasury,
         associated_token::token_program = token_b_program,
     )]
-    pub token_b_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub treasury_token_b_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// Creator token a account
+    #[account(
+        init_if_needed,
+        payer = payer,
+        associated_token::mint = token_a_mint,
+        associated_token::authority = creator,
+        associated_token::token_program = token_a_program,
+    )]
+    pub creator_token_a_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// Creator token b account
+    #[account(
+        init_if_needed,
+        payer = payer,
+        associated_token::mint = token_b_mint,
+        associated_token::authority = creator,
+        associated_token::token_program = token_b_program,
+    )]
+    pub creator_token_b_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// Vault authority token a account (receives fees from AMM)
+    #[account(
+        init_if_needed,
+        payer = payer,
+        associated_token::mint = token_a_mint,
+        associated_token::authority = vault_authority,
+        associated_token::token_program = token_a_program,
+    )]
+    pub vault_token_a_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// Vault authority token b account (receives fees from AMM)
+    #[account(
+        init_if_needed,
+        payer = payer,
+        associated_token::mint = token_b_mint,
+        associated_token::authority = vault_authority,
+        associated_token::token_program = token_b_program,
+    )]
+    pub vault_token_b_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// The vault token account for input token
     #[account(mut, token::token_program = token_a_program, token::mint = token_a_mint)]
@@ -95,7 +140,7 @@ pub struct ClaimPositionFee<'info> {
     #[account(address = cp_amm::ID)]
     pub amm_program: UncheckedAccount<'info>,
 
-    /// CHECK:
+    /// CHECK: amm program event authority
     pub event_authority: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
@@ -104,8 +149,30 @@ pub struct ClaimPositionFee<'info> {
 
 impl<'info> ClaimPositionFee<'info> {
     pub fn claim_position_fee(&mut self) -> Result<()> {
+        // Validate that the pool tokens match the launch pool tokens
+        let token_a_mint = self.token_a_mint.key();
+        let token_b_mint = self.token_b_mint.key();
+        let launch_token_mint = self.launch_pool.token_mint;
+        let launch_quote_mint = self.launch_pool.quote_mint;
+
+        // Check if either token_a or token_b matches launch pool's token_mint
+        // and the other matches quote_mint (SOL)
+        let is_valid_pair =
+            (token_a_mint == launch_token_mint && token_b_mint == launch_quote_mint) ||
+            (token_b_mint == launch_token_mint && token_a_mint == launch_quote_mint);
+
+        require!(
+            is_valid_pair,
+            LaunchpadError::InvalidTokenMint
+        );
+
         let vault_authority_seeds: &[&[u8]] = &[VAULT_AUTHORITY, &[VAULT_BUMP]];
 
+        // Step 1: Record the balances before claiming fees
+        let token_a_before = self.vault_token_a_account.amount;
+        let token_b_before = self.vault_token_b_account.amount;
+
+        // Step 2: Claim fees from AMM to vault_authority's token accounts
         cp_amm::cpi::claim_position_fee(
             CpiContext::new_with_signer(
                 self.amm_program.to_account_info(),
@@ -113,8 +180,8 @@ impl<'info> ClaimPositionFee<'info> {
                     pool_authority: self.pool_authority.to_account_info(),
                     pool: self.pool.to_account_info(),
                     position: self.position.to_account_info(),
-                    token_a_account: self.token_a_account.to_account_info(),
-                    token_b_account: self.token_b_account.to_account_info(),
+                    token_a_account: self.vault_token_a_account.to_account_info(),
+                    token_b_account: self.vault_token_b_account.to_account_info(),
                     token_a_vault: self.token_a_vault.to_account_info(),
                     token_b_vault: self.token_b_vault.to_account_info(),
                     token_a_mint: self.token_a_mint.to_account_info(),
@@ -130,8 +197,88 @@ impl<'info> ClaimPositionFee<'info> {
             )
         )?;
 
-        self.token_a_account.reload()?;
-        self.token_b_account.reload()?;
+        // Step 3: Reload vault authority accounts to get the updated balances
+        self.vault_token_a_account.reload()?;
+        self.vault_token_b_account.reload()?;
+
+        // Step 4: Calculate the actual fees claimed (difference between after and before)
+        let token_a_after = self.vault_token_a_account.amount;
+        let token_b_after = self.vault_token_b_account.amount;
+
+        let token_a_claimed = token_a_after.saturating_sub(token_a_before);
+        let token_b_claimed = token_b_after.saturating_sub(token_b_before);
+
+        // Step 5: Calculate 50% of claimed fees for distribution
+        let token_a_half = token_a_claimed / 2;
+        let token_b_half = token_b_claimed / 2;
+
+        // Step 6: Transfer 50% of token_a to treasury
+        if token_a_half > 0 {
+            token::transfer(
+                CpiContext::new_with_signer(
+                    self.token_program.to_account_info(),
+                    Transfer {
+                        from: self.vault_token_a_account.to_account_info(),
+                        to: self.treasury_token_a_account.to_account_info(),
+                        authority: self.vault_authority.to_account_info(),
+                    },
+                    &[&vault_authority_seeds[..]],
+                ),
+                token_a_half,
+            )?;
+        }
+
+        // Step 7: Transfer 50% of token_a to creator
+        if token_a_half > 0 {
+            token::transfer(
+                CpiContext::new_with_signer(
+                    self.token_program.to_account_info(),
+                    Transfer {
+                        from: self.vault_token_a_account.to_account_info(),
+                        to: self.creator_token_a_account.to_account_info(),
+                        authority: self.vault_authority.to_account_info(),
+                    },
+                    &[&vault_authority_seeds[..]],
+                ),
+                token_a_half,
+            )?;
+        }
+
+        // Step 8: Transfer 50% of token_b to treasury
+        if token_b_half > 0 {
+            token::transfer(
+                CpiContext::new_with_signer(
+                    self.token_program.to_account_info(),
+                    Transfer {
+                        from: self.vault_token_b_account.to_account_info(),
+                        to: self.treasury_token_b_account.to_account_info(),
+                        authority: self.vault_authority.to_account_info(),
+                    },
+                    &[&vault_authority_seeds[..]],
+                ),
+                token_b_half,
+            )?;
+        }
+
+        // Step 9: Transfer 50% of token_b to creator
+        if token_b_half > 0 {
+            token::transfer(
+                CpiContext::new_with_signer(
+                    self.token_program.to_account_info(),
+                    Transfer {
+                        from: self.vault_token_b_account.to_account_info(),
+                        to: self.creator_token_b_account.to_account_info(),
+                        authority: self.vault_authority.to_account_info(),
+                    },
+                    &[&vault_authority_seeds[..]],
+                ),
+                token_b_half,
+            )?;
+        }
+
+        msg!("Fees claimed and distributed successfully");
+        msg!("Token A claimed: {}, distributed: {} to treasury, {} to creator", token_a_claimed, token_a_half, token_a_half);
+        msg!("Token B claimed: {}, distributed: {} to treasury, {} to creator", token_b_claimed, token_b_half, token_b_half);
 
         Ok(())
     }

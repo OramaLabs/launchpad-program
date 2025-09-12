@@ -1,11 +1,11 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, CloseAccount, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
 use crate::const_pda::const_authority::VAULT_BUMP;
 use crate::constants::{USER_POSITION_SEED, VAULT_AUTHORITY};
 use crate::state::{LaunchPool, LaunchStatus, UserPosition};
 use crate::errors::LaunchpadError;
-use crate::events::UserRewardsClaimed;
+use crate::events::{UserRewardsClaimed, UserRefunded};
 
 #[derive(Accounts)]
 pub struct ClaimUserRewards<'info> {
@@ -32,7 +32,8 @@ pub struct ClaimUserRewards<'info> {
         mut,
         seeds = [USER_POSITION_SEED, launch_pool.key().as_ref(), user.key().as_ref()],
         bump = user_position.bump,
-        constraint = user_position.contributed_sol > 0 @ LaunchpadError::NothingToClaim
+        constraint = user_position.contributed_sol > 0 @ LaunchpadError::NothingToClaim,
+        constraint = !user_position.tokens_claimed && !user_position.refunded @ LaunchpadError::AlreadyClaimed
     )]
     pub user_position: Box<Account<'info, UserPosition>>,
 
@@ -75,96 +76,137 @@ pub struct ClaimUserRewards<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-/// Claim both tokens and excess SOL for users
+/// Claim rewards based on pool status - tokens and excess SOL for successful pools, only refund for failed pools
 pub fn claim_user_rewards(ctx: Context<ClaimUserRewards>) -> Result<()> {
     let pool = &mut ctx.accounts.launch_pool;
     let user_position: &mut Account<'_, UserPosition> = &mut ctx.accounts.user_position;
     let clock = Clock::get()?;
     let current_time = clock.unix_timestamp;
 
-    // Check if already claimed
-    if user_position.tokens_claimed {
+    // Check if already processed
+    if user_position.tokens_claimed || user_position.refunded {
         return Err(LaunchpadError::AlreadyClaimed.into());
     }
 
-    // Calculate tokens to claim
-    let tokens_to_claim = calculate_user_token_allocation(
-        user_position.contributed_sol,
-        pool.raised_sol,
-        pool.sale_allocation,
-    )?;
-
-    // Calculate excess SOL to claim
-    let excess_sol_to_claim = if pool.excess_sol > 0 && !user_position.excess_sol_claimed {
-        user_position.calculate_excess_sol(pool.excess_sol, pool.raised_sol)?
-    } else {
-        0
-    };
-
-    msg!("User claiming: {} tokens, {} excess SOL", tokens_to_claim, excess_sol_to_claim);
-
     let signer_seeds: &[&[&[u8]]] = &[&[VAULT_AUTHORITY, &[VAULT_BUMP]]];
-    // Transfer tokens to user
-    if tokens_to_claim > 0 {
-        token::transfer(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                Transfer {
-                    from: ctx.accounts.pool_token_vault.to_account_info(),
-                    to: ctx.accounts.user_token_account.to_account_info(),
-                    authority: ctx.accounts.vault_authority.to_account_info(),
-                },
-                signer_seeds,
-            ),
-            tokens_to_claim,
-        )?;
+
+    // Handle different pool statuses
+    match pool.status {
+        LaunchStatus::Failed => {
+            // For failed pools, only refund the contributed SOL
+            let refund_amount = user_position.contributed_sol;
+
+            msg!("Pool failed - refunding {} SOL to user", refund_amount);
+
+            // Transfer refund SOL to user
+            if refund_amount > 0 {
+                token::transfer(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.token_program.to_account_info(),
+                        Transfer {
+                            from: ctx.accounts.pool_quote_vault.to_account_info(),
+                            to: ctx.accounts.user_quote_account.to_account_info(),
+                            authority: ctx.accounts.vault_authority.to_account_info(),
+                        },
+                        signer_seeds,
+                    ),
+                    refund_amount,
+                )?;
+            }
+
+            // Mark as refunded
+            user_position.refunded = true;
+            user_position.last_updated = current_time;
+
+            // Emit refund event
+            emit!(UserRefunded {
+                pool: pool.key(),
+                user: ctx.accounts.user.key(),
+                token_mint: pool.token_mint,
+                refund_amount,
+                user_contribution: user_position.contributed_sol,
+                pool_total_raised: pool.raised_sol,
+                timestamp: current_time,
+            });
+
+            msg!("User refund processed successfully");
+        },
+        LaunchStatus::Migrated => {
+            // For successful/migrated pools, distribute tokens and excess SOL
+            let tokens_to_claim = calculate_user_token_allocation(
+                user_position.contributed_sol,
+                pool.raised_sol,
+                pool.sale_allocation,
+            )?;
+
+            // Calculate excess SOL to claim
+            let excess_sol_to_claim = if pool.excess_sol > 0 && !user_position.excess_sol_claimed {
+                user_position.calculate_excess_sol(pool.excess_sol, pool.raised_sol)?
+            } else {
+                0
+            };
+
+            msg!("User claiming: {} tokens, {} excess SOL", tokens_to_claim, excess_sol_to_claim);
+
+            // Transfer tokens to user
+            if tokens_to_claim > 0 {
+                user_position.refunded = true;
+                token::transfer(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.token_program.to_account_info(),
+                        Transfer {
+                            from: ctx.accounts.pool_token_vault.to_account_info(),
+                            to: ctx.accounts.user_token_account.to_account_info(),
+                            authority: ctx.accounts.vault_authority.to_account_info(),
+                        },
+                        signer_seeds,
+                    ),
+                    tokens_to_claim,
+                )?;
+            }
+
+            // Transfer excess SOL to user
+            if excess_sol_to_claim > 0 {
+                token::transfer(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.token_program.to_account_info(),
+                        Transfer {
+                            from: ctx.accounts.pool_quote_vault.to_account_info(),
+                            to: ctx.accounts.user_quote_account.to_account_info(),
+                            authority: ctx.accounts.vault_authority.to_account_info(),
+                        },
+                        signer_seeds,
+                    ),
+                    excess_sol_to_claim,
+                )?;
+            }
+
+            // Update user position
+            user_position.tokens_claimed = true;
+            if excess_sol_to_claim > 0 {
+                user_position.excess_sol_claimed = true;
+            }
+            user_position.last_updated = current_time;
+
+            // Emit rewards claimed event
+            emit!(UserRewardsClaimed {
+                pool: pool.key(),
+                user: ctx.accounts.user.key(),
+                token_mint: pool.token_mint,
+                tokens_claimed: tokens_to_claim,
+                excess_sol_claimed: excess_sol_to_claim,
+                user_contribution: user_position.contributed_sol,
+                pool_total_raised: pool.raised_sol,
+                timestamp: current_time,
+            });
+
+            msg!("User rewards claimed successfully");
+        },
+        _ => {
+            // Invalid status for claiming rewards
+            return Err(LaunchpadError::InvalidStatus.into());
+        }
     }
-
-    // Transfer excess SOL to user
-    if excess_sol_to_claim > 0 {
-        token::transfer(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                Transfer {
-                    from: ctx.accounts.pool_quote_vault.to_account_info(),
-                    to: ctx.accounts.user_quote_account.to_account_info(),
-                    authority: ctx.accounts.vault_authority.to_account_info(),
-                },
-                signer_seeds,
-            ),
-            excess_sol_to_claim,
-        )?;
-
-        token::close_account(CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
-            CloseAccount {
-                account: ctx.accounts.user_quote_account.to_account_info(),
-                destination: ctx.accounts.user.to_account_info(),
-                authority: ctx.accounts.user.to_account_info(),
-            },
-        ))?;
-    }
-
-    // Update user position
-    user_position.tokens_claimed = true;
-    if excess_sol_to_claim > 0 {
-        user_position.excess_sol_claimed = true;
-    }
-    user_position.last_updated = current_time;
-
-    // Emit user rewards claimed event
-    emit!(UserRewardsClaimed {
-        pool: pool.key(),
-        user: ctx.accounts.user.key(),
-        token_mint: pool.token_mint,
-        tokens_claimed: tokens_to_claim,
-        excess_sol_claimed: excess_sol_to_claim,
-        user_contribution: user_position.contributed_sol,
-        pool_total_raised: pool.raised_sol,
-        timestamp: current_time,
-    });
-
-    msg!("User rewards claimed successfully");
 
     Ok(())
 }

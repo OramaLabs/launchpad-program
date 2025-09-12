@@ -146,6 +146,25 @@ pub struct UserRewardsClaimed {
     pub timestamp: i64,
 }
 
+/// Event emitted when users get refunds for failed launch pools
+#[event]
+pub struct UserRefunded {
+    /// Launch pool address
+    pub pool: Pubkey,
+    /// User address
+    pub user: Pubkey,
+    /// Token mint
+    pub token_mint: Pubkey,
+    /// Amount of SOL refunded
+    pub refund_amount: u64,
+    /// User's original contribution
+    pub user_contribution: u64,
+    /// Pool's total raised amount
+    pub pool_total_raised: u64,
+    /// Refund timestamp
+    pub timestamp: i64,
+}
+
 // =============================================================================
 // STAKING EVENTS (IMPROVED)
 // =============================================================================
@@ -237,5 +256,26 @@ pub struct SwapFeeCharged {
     /// Fee percentage in basis points (5 = 0.05%)
     pub fee_percentage: u16,
     /// Timestamp of the swap
+    pub timestamp: i64,
+}
+
+// =============================================================================
+// DIVIDEND EVENTS
+// =============================================================================
+
+/// Event emitted when user claims token dividends
+#[event]
+pub struct DividendClaimed {
+    /// User address who claimed dividends
+    pub user: Pubkey,
+    /// Token mint for which dividends were claimed
+    pub token_mint: Pubkey,
+    /// Amount of dividends claimed in this transaction
+    pub claimed_amount: u64,
+    /// Total amount of dividends this user has claimed for this token
+    pub total_claimed: u64,
+    /// Signed total dividend amount used for verification
+    pub signed_total_dividend: u64,
+    /// Claim timestamp
     pub timestamp: i64,
 }

@@ -6,7 +6,7 @@ use anchor_lang::solana_program::ed25519_program::ID as ED25519_ID;
 use std::convert::TryInto;
 use crate::errors::LaunchpadError;
 
-/// LAUNCHPAD_POINTS_V1:{user}{points_to_use}{total_points}{launch_pool}
+/// LAUNCHPAD_POINTS_V1:{user}:{points_to_use}:{total_points}:{launch_pool}
 pub fn format_points_message(
     user: &Pubkey,
     points_to_use: u64,
@@ -14,11 +14,26 @@ pub fn format_points_message(
     launch_pool: &Pubkey,
 ) -> Vec<u8> {
     let message_string = format!(
-        "LAUNCHPAD_POINTS_V1:{}{}{}{}",
+        "LAUNCHPAD_POINTS_V1:{}:{}:{}:{}",
         user,
         points_to_use,
         total_points,
         launch_pool,
+    );
+    message_string.into_bytes()
+}
+
+/// LAUNCHPAD_DIVIDEND_V1:{user}:{token_mint}:{total_dividend_amount}
+pub fn format_dividend_message(
+    user: &Pubkey,
+    token_mint: &Pubkey,
+    total_dividend_amount: u64,
+) -> Vec<u8> {
+    let message_string = format!(
+        "LAUNCHPAD_DIVIDEND_V1:{}:{}:{}",
+        user,
+        token_mint,
+        total_dividend_amount,
     );
     message_string.into_bytes()
 }

@@ -35,6 +35,9 @@ pub enum LaunchpadError {
     #[msg("Too early to finalize")]
     TooEarlyToFinalize,
 
+    #[msg("Start time must be in the future")]
+    InvalidStartTime,
+
     // ===== Parameter Errors =====
     #[msg("Invalid target amount")]
     InvalidTargetAmount,
@@ -53,6 +56,9 @@ pub enum LaunchpadError {
 
     #[msg("Invalid contribution amount")]
     InvalidContribution,
+
+    #[msg("Invalid amount")]
+    InvalidAmount,
 
     // ===== Signature Errors =====
     #[msg("Invalid signature")]
@@ -74,6 +80,12 @@ pub enum LaunchpadError {
 
     #[msg("Already claimed")]
     AlreadyClaimed,
+
+    #[msg("No claimable amount available")]
+    NoClaimableAmount,
+
+    #[msg("Insufficient vault balance")]
+    InsufficientVaultBalance,
 
     #[msg("Invalid token mint")]
     InvalidTokenMint,
