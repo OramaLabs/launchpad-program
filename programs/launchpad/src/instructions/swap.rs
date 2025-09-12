@@ -1,4 +1,4 @@
-use crate::{constants::GLOBAL_CONFIG_SEED, dlmm, events::SwapFeeCharged, state::GlobalConfig};
+use crate::{constants::GLOBAL_CONFIG_SEED, dlmm::{self, types::RemainingAccountsInfo}, events::SwapFeeCharged, state::GlobalConfig};
 use anchor_lang::prelude::*;
 use anchor_spl::{
     token::{self, TokenAccount, Transfer}
@@ -72,6 +72,9 @@ pub struct DlmmSwap<'info> {
     /// CHECK: DLMM program event authority for event CPI
     pub event_authority: UncheckedAccount<'info>,
 
+    /// CHECK: memo_program
+    pub memo_program: UncheckedAccount<'info>,
+
     /// CHECK: Token program of mint X
     pub token_x_program: UncheckedAccount<'info>,
     /// CHECK: Token program of mint Y
@@ -95,6 +98,7 @@ pub fn handle_dlmm_swap<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, DlmmSwap<'info>>,
     amount_in: u64,
     min_amount_out: u64,
+    remaining_accounts_info: RemainingAccountsInfo
 ) -> Result<()> {
     // Calculate 0.05% fee from input tokens (5 basis points)
     let fee_amount = amount_in
@@ -127,7 +131,7 @@ pub fn handle_dlmm_swap<'a, 'b, 'c, 'info>(
     let balance_before = ctx.accounts.user_token_out.amount;
 
     // Execute direct DLMM swap with actual swap amount (after fee deduction)
-    let accounts = dlmm::cpi::accounts::Swap {
+    let accounts = dlmm::cpi::accounts::Swap2 {
         lb_pair: ctx.accounts.lb_pair.to_account_info(),
         bin_array_bitmap_extension: ctx
             .accounts
@@ -150,13 +154,14 @@ pub fn handle_dlmm_swap<'a, 'b, 'c, 'info>(
         token_x_program: ctx.accounts.token_x_program.to_account_info(),
         token_y_program: ctx.accounts.token_y_program.to_account_info(),
         event_authority: ctx.accounts.event_authority.to_account_info(),
+        memo_program: ctx.accounts.memo_program.to_account_info(),
         program: ctx.accounts.dlmm_program.to_account_info(),
     };
 
     // Direct CPI call without signer_seeds - user signs for themselves
     let cpi_context = CpiContext::new(ctx.accounts.dlmm_program.to_account_info(), accounts)
         .with_remaining_accounts(ctx.remaining_accounts.to_vec());
-    dlmm::cpi::swap(cpi_context, actual_swap_amount, min_amount_out)?;
+    dlmm::cpi::swap2(cpi_context, actual_swap_amount, min_amount_out, remaining_accounts_info)?;
 
     // Reload user's output token account to get updated balance
     ctx.accounts.user_token_out.reload()?;

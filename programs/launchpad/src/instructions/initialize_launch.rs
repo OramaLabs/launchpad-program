@@ -13,6 +13,7 @@ use crate::constants::*;
 use crate::state::{GlobalConfig, LaunchPool, LaunchStatus};
 use crate::utils::token::calculate_token_allocations;
 use crate::events::LaunchPoolInitialized;
+use crate::errors::LaunchpadError;
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct InitializeLaunchParams {
@@ -149,6 +150,11 @@ pub fn initialize_launch(
     let linear_unlock_duration = params.linear_unlock_duration.unwrap_or(DEFAULT_CREATOR_LINEAR_UNLOCK_DURATION);
     let start_time = params.start_time.unwrap_or(clock.unix_timestamp);
 
+    // Validate start_time must be in the future
+    if start_time <= clock.unix_timestamp {
+        return Err(LaunchpadError::InvalidStartTime.into());
+    }
+
     global_config.validate_launch_params(target_sol, duration)?;
 
     // Initialize launch pool
@@ -252,7 +258,7 @@ pub fn initialize_launch(
         None,  // collection_details
     )?;
 
-    // Revoke mint authority (set to None)
+    // Revoke authority (set to None)
     token::set_authority(
         CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -263,6 +269,18 @@ pub fn initialize_launch(
             signer_seeds,
         ),
         token::spl_token::instruction::AuthorityType::MintTokens,
+        None,
+    )?;
+    token::set_authority(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            token::SetAuthority {
+                current_authority: launch_pool.to_account_info(),
+                account_or_mint: ctx.accounts.token_mint.to_account_info(),
+            },
+            signer_seeds,
+        ),
+        token::spl_token::instruction::AuthorityType::FreezeAccount,
         None,
     )?;
 

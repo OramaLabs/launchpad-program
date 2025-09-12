@@ -3,6 +3,7 @@ pub const GLOBAL_CONFIG_SEED: &[u8] = b"global_config";
 pub const LAUNCH_POOL_SEED: &[u8] = b"launch_pool";
 pub const USER_POINT_SEED: &[u8] = b"user_point";
 pub const USER_POSITION_SEED: &[u8] = b"user_position";
+pub const USER_DIVIDEND_SEED: &[u8] = b"user_dividend";
 pub const VAULT_AUTHORITY: &[u8] = b"vault_authority";
 pub const TOKEN_VAULT: &[u8] = b"token_vault";
 pub const TOKEN_MINT_SEED: &[u8] = b"token_mint";

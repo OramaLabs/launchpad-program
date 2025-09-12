@@ -13,7 +13,7 @@ use instructions::*;
 
 declare_program!(dlmm);
 
-declare_id!("7E22dUYERWbyaqGDTKeU7NfYPRnBuAaVULXJgafxsBHq");
+declare_id!("5ZGbULBt41YdhyHNEnAPTe58DgDM4ThGtbBFq7FmkLh5");
 
 #[program]
 pub mod launchpad {
@@ -78,6 +78,19 @@ pub mod launchpad {
         instructions::claim_creator_tokens(ctx)
     }
 
+    /// Claim token dividends with points_signer verification
+    pub fn claim_token_dividends(
+        ctx: Context<ClaimTokenDividends>,
+        total_dividend_amount: u64,
+        signature: [u8; 64],
+    ) -> Result<()> {
+        instructions::claim_token_dividends(
+            ctx,
+            total_dividend_amount,
+            signature,
+        )
+    }
+
     /// Stake tokens with lock duration
     pub fn stake_tokens(
         ctx: Context<StakeTokens>,
@@ -105,7 +118,8 @@ pub mod launchpad {
         ctx: Context<'a, 'b, 'c, 'info, DlmmSwap<'info>>,
         amount_in: u64,
         min_amount_out: u64,
+        remaining_accounts_info: dlmm::types::RemainingAccountsInfo
     ) -> Result<()> {
-        instructions::handle_dlmm_swap(ctx, amount_in, min_amount_out)
+        instructions::handle_dlmm_swap(ctx, amount_in, min_amount_out, remaining_accounts_info)
     }
 }

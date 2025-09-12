@@ -104,7 +104,7 @@ pub fn participate_with_points(
     check_time_window(launch_pool, clock.unix_timestamp)?;
 
     let message = format_points_message(&user.key(), points_to_use, total_points, &launch_pool.key());
-    
+
     // Get the current instruction index and load the previous instruction
     let current_index = load_current_index_checked(&ctx.accounts.instructions_sysvar)?;
     require!(current_index > 0, LaunchpadError::InvalidInstructionIndex);
@@ -166,6 +166,8 @@ pub fn participate_with_points(
         points_to_use,
         clock.unix_timestamp,
     )?;
+
+    user_point.points_consumed += points_to_use;
 
     // Emit participation event
     emit!(ParticipationEvent {
