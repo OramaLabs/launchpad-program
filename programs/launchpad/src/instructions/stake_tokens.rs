@@ -108,28 +108,42 @@ pub fn stake_tokens(
     );
     token::transfer(transfer_ctx, amount)?;
 
-    // Initialize staking position
+    // Check if this is a new staking position or adding to existing one
+    let is_new_position = ctx.accounts.staking_position.staked_amount == 0
+        && ctx.accounts.staking_position.user == Pubkey::default();
+
     let bump = ctx.bumps.staking_position;
 
-    ctx.accounts.staking_position.initialize(
-        ctx.accounts.user.key(),
-        ctx.accounts.token_mint.key(),
-        amount, // Amount after fee deduction
-        lock_duration,
-        current_time,
-        bump,
-    );
+    if is_new_position {
+        // Initialize new staking position
+        ctx.accounts.staking_position.initialize(
+            ctx.accounts.user.key(),
+            ctx.accounts.token_mint.key(),
+            amount,
+            lock_duration,
+            current_time,
+            bump,
+        )?;
+    } else {
+        // Update existing staking position (add to existing stake)
+        ctx.accounts.staking_position.update_stake(
+            amount,
+            lock_duration,
+            current_time,
+        )?;
+    }
 
-    // Emit improved stake event
+    // Emit stake event (without reward fields as rewards are handled off-chain)
     emit!(TokensStaked {
         user: ctx.accounts.user.key(),
         position: ctx.accounts.staking_position.key(),
         token_mint: ctx.accounts.token_mint.key(),
         amount,
+        total_staked: ctx.accounts.staking_position.staked_amount,
         lock_duration,
         unlock_time: ctx.accounts.staking_position.unlock_time,
         stake_time: current_time,
-        rewards_rate: 0, // TODO: Set actual rewards rate if applicable
+        is_additional_stake: !is_new_position,
     });
 
     msg!(

@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
+use crate::const_pda::const_authority::VAULT_BUMP;
 use crate::constants::{TOKEN_VAULT, VAULT_AUTHORITY};
 use crate::errors::LaunchpadError;
 use crate::events::{TokensUnstaked};
@@ -44,7 +45,7 @@ pub struct UnstakeTokens<'info> {
     #[account(
         mut,
         token::mint = token_mint,
-        token::authority = staking_position,
+        token::authority = vault_authority,
         seeds = [TOKEN_VAULT, vault_authority.key().as_ref(), token_mint.key().as_ref()],
         bump,
     )]
@@ -82,20 +83,11 @@ pub fn unstake_tokens(ctx: Context<UnstakeTokens>) -> Result<()> {
         LaunchpadError::StakeNotUnlocked
     );
 
-    // Calculate total amount to transfer (staked amount + unclaimed rewards)
-    let total_to_transfer = staking_position.staked_amount;
+    // Always unstake the full amount
+    let unstake_amount = staking_position.staked_amount;
 
-    // Prepare seeds for PDA signing
-    let user_key = ctx.accounts.user.key();
-    let token_mint_key = ctx.accounts.token_mint.key();
-    let bump = staking_position.bump;
-    let seeds = &[
-        StakingPosition::SEED,
-        user_key.as_ref(),
-        token_mint_key.as_ref(),
-        &[bump],
-    ];
-    let signer_seeds = &[&seeds[..]];
+    // Prepare seeds for vault authority PDA signing
+    let signer_seeds: &[&[&[u8]]] = &[&[VAULT_AUTHORITY, &[VAULT_BUMP]]];
 
     // Transfer tokens back to user
     let transfer_ctx = CpiContext::new_with_signer(
@@ -103,24 +95,22 @@ pub fn unstake_tokens(ctx: Context<UnstakeTokens>) -> Result<()> {
         Transfer {
             from: ctx.accounts.token_vault.to_account_info(),
             to: ctx.accounts.user_token_account.to_account_info(),
-            authority: ctx.accounts.staking_position.to_account_info(),
+            authority: ctx.accounts.vault_authority.to_account_info(),
         },
         signer_seeds,
     );
-    token::transfer(transfer_ctx, total_to_transfer)?;
+    token::transfer(transfer_ctx, unstake_amount)?;
 
-    // Calculate duration staked and rewards earned
+    // Calculate duration staked
     let duration_staked = current_time - staking_position.stake_time;
-    let rewards_earned = total_to_transfer.saturating_sub(staking_position.staked_amount);
 
-    // Emit improved unstake event
+    // Emit unstake event (no rewards calculation - handled off-chain)
     emit!(TokensUnstaked {
         user: ctx.accounts.user.key(),
         position: staking_position.key(),
         token_mint: ctx.accounts.token_mint.key(),
-        staked_amount: staking_position.staked_amount,
-        rewards_earned,
-        total_received: total_to_transfer,
+        unstaked_amount: unstake_amount,
+        remaining_staked: 0, // Always 0 since we unstake everything
         duration_staked,
         unstake_time: current_time,
     });
@@ -128,9 +118,11 @@ pub fn unstake_tokens(ctx: Context<UnstakeTokens>) -> Result<()> {
     msg!(
         "User {} unstaked {} tokens from mint {}",
         ctx.accounts.user.key(),
-        staking_position.staked_amount,
+        unstake_amount,
         ctx.accounts.token_mint.key()
     );
+
+    // Position account is automatically closed by the 'close = user' constraint
 
     Ok(())
 }

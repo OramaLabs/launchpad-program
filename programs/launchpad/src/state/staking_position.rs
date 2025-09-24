@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use crate::errors::LaunchpadError;
 
 #[account]
 pub struct StakingPosition {
@@ -54,14 +55,42 @@ impl StakingPosition {
         lock_duration: i64,
         current_time: i64,
         bump: u8,
-    ) {
+    ) -> Result<()> {
         self.user = user;
         self.token_mint = token_mint;
         self.staked_amount = staked_amount;
         self.lock_duration = lock_duration;
         self.stake_time = current_time;
-        self.unlock_time = current_time + lock_duration;
+        // Use checked_add to prevent overflow
+        self.unlock_time = current_time
+            .checked_add(lock_duration)
+            .ok_or(LaunchpadError::MathOverflow)?;
         self.bump = bump;
         self.reserved = [0; 8];
+        Ok(())
     }
+
+    /// Update existing staking position for additional stakes
+    pub fn update_stake(
+        &mut self,
+        additional_amount: u64,
+        new_lock_duration: i64,
+        current_time: i64,
+    ) -> Result<()> {
+        // Use checked_add to safely update staked amount
+        self.staked_amount = self
+            .staked_amount
+            .checked_add(additional_amount)
+            .ok_or(LaunchpadError::MathOverflow)?;
+
+        // Update lock duration and unlock time
+        self.lock_duration = new_lock_duration;
+        self.stake_time = current_time;
+        self.unlock_time = current_time
+            .checked_add(new_lock_duration)
+            .ok_or(LaunchpadError::MathOverflow)?;
+
+        Ok(())
+    }
+
 }

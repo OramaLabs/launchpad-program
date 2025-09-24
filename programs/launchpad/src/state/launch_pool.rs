@@ -103,7 +103,7 @@ impl LaunchPool {
         32 + // token_mint
         32 + // token_mint_vault
         32 + // quote_mint_vault
-        32 + // quote_mint_vault
+        32 + // quote_mint
         1 + // status (enum)
         1 + // bump
         8 + // total_supply

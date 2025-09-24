@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 
+use crate::constants::LAUNCH_POOL_SEED;
 use crate::errors::LaunchpadError;
 use crate::state::{LaunchPool, LaunchStatus};
 use crate::utils::validation::check_can_finalize;
@@ -13,6 +14,8 @@ pub struct FinalizeLaunch<'info> {
 
     #[account(
         mut,
+        seeds = [LAUNCH_POOL_SEED, launch_pool.creator.as_ref(), &launch_pool.index.to_le_bytes()],
+        bump = launch_pool.bump,
         constraint = launch_pool.is_active() @ LaunchpadError::LaunchNotActive,
     )]
     pub launch_pool: Box<Account<'info, LaunchPool>>,

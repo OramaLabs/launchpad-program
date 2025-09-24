@@ -178,16 +178,18 @@ pub struct TokensStaked {
     pub position: Pubkey,
     /// Token mint address of the staked token
     pub token_mint: Pubkey,
-    /// Amount of tokens staked
+    /// Amount of tokens staked in this transaction
     pub amount: u64,
+    /// Total amount staked in this position after this transaction
+    pub total_staked: u64,
     /// Lock duration in seconds
     pub lock_duration: i64,
     /// Timestamp when tokens can be unlocked
     pub unlock_time: i64,
     /// Timestamp when stake was created
     pub stake_time: i64,
-    /// Expected rewards rate (if applicable)
-    pub rewards_rate: u64,
+    /// Whether this is additional stake to existing position
+    pub is_additional_stake: bool,
 }
 
 /// Event emitted when tokens are unstaked
@@ -199,12 +201,10 @@ pub struct TokensUnstaked {
     pub position: Pubkey,
     /// Token mint address of the unstaked token
     pub token_mint: Pubkey,
-    /// Amount of tokens unstaked (original stake)
-    pub staked_amount: u64,
-    /// Amount of rewards earned
-    pub rewards_earned: u64,
-    /// Total amount received (stake + rewards)
-    pub total_received: u64,
+    /// Amount of tokens unstaked in this transaction
+    pub unstaked_amount: u64,
+    /// Amount of tokens still staked after this unstake
+    pub remaining_staked: u64,
     /// Duration staked in seconds
     pub duration_staked: i64,
     /// Timestamp when unstake occurred

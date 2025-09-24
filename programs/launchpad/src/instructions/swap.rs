@@ -1,8 +1,6 @@
-use crate::{constants::GLOBAL_CONFIG_SEED, dlmm::{self, types::RemainingAccountsInfo}, events::SwapFeeCharged, state::GlobalConfig};
+use crate::{constants::GLOBAL_CONFIG_SEED, dlmm::{self, types::RemainingAccountsInfo}, errors::LaunchpadError, events::SwapFeeCharged, state::GlobalConfig};
 use anchor_lang::prelude::*;
-use anchor_spl::{
-    token::{self, TokenAccount, Transfer}
-};
+use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
 #[derive(Accounts)]
 pub struct DlmmSwap<'info> {
@@ -75,8 +73,13 @@ pub struct DlmmSwap<'info> {
     /// CHECK: memo_program
     pub memo_program: UncheckedAccount<'info>,
 
-    /// CHECK: Token program of mint X
-    pub token_x_program: UncheckedAccount<'info>,
+    /// Token program of mint X
+    #[account(
+        constraint = token_x_program.key() == anchor_spl::token::ID
+                     || token_x_program.key() == anchor_spl::token_2022::ID
+                     @ crate::errors::LaunchpadError::InvalidTokenMint
+    )]
+    pub token_x_program: Program<'info, Token>,
     /// CHECK: Token program of mint Y
     pub token_y_program: UncheckedAccount<'info>,
     // Bin arrays need to be passed using remaining accounts
@@ -104,12 +107,12 @@ pub fn handle_dlmm_swap<'a, 'b, 'c, 'info>(
     let fee_amount = amount_in
         .checked_mul(5)
         .and_then(|v| v.checked_div(10000))
-        .ok_or(ProgramError::ArithmeticOverflow)?;
+        .ok_or(LaunchpadError::MathOverflow)?;
 
     // Calculate actual amount to swap after deducting fee
     let actual_swap_amount = amount_in
         .checked_sub(fee_amount)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
+        .ok_or(LaunchpadError::MathOverflow)?;
 
     // Transfer fee from user's input token account to admin fee account
     if fee_amount > 0 {
@@ -153,8 +156,8 @@ pub fn handle_dlmm_swap<'a, 'b, 'c, 'info>(
         user: ctx.accounts.user.to_account_info(),
         token_x_program: ctx.accounts.token_x_program.to_account_info(),
         token_y_program: ctx.accounts.token_y_program.to_account_info(),
-        event_authority: ctx.accounts.event_authority.to_account_info(),
         memo_program: ctx.accounts.memo_program.to_account_info(),
+        event_authority: ctx.accounts.event_authority.to_account_info(),
         program: ctx.accounts.dlmm_program.to_account_info(),
     };
 
@@ -170,7 +173,7 @@ pub fn handle_dlmm_swap<'a, 'b, 'c, 'info>(
     let balance_after = ctx.accounts.user_token_out.amount;
     let output_amount = balance_after
         .checked_sub(balance_before)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
+        .ok_or(LaunchpadError::MathOverflow)?;
 
     // Emit swap fee event
     emit!(SwapFeeCharged {

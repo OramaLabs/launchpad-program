@@ -4,17 +4,9 @@ use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 use crate::errors::LaunchpadError;
 use crate::state::{LaunchPool, LaunchStatus};
 
-/// Validate if launch pool is in active status
-pub fn check_launch_active(pool: &LaunchPool) -> Result<()> {
-    require!(
-        pool.status == LaunchStatus::Active,
-        LaunchpadError::LaunchNotActive
-    );
-    Ok(())
-}
-
 /// Validate if within time window
 pub fn check_time_window(pool: &LaunchPool, current_time: i64) -> Result<()> {
+    msg!("currrrrr {}", current_time);
     require!(
         current_time >= pool.start_time,
         LaunchpadError::NotStarted
