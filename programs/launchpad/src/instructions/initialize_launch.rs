@@ -76,7 +76,7 @@ pub struct InitializeLaunch<'info> {
     #[account(
         init_if_needed,
         payer = creator,
-        seeds = [TOKEN_VAULT, vault_authority.key().as_ref(), token_mint.key().as_ref()],
+        seeds = [TOKEN_VAULT, launch_pool.key().as_ref(), vault_authority.key().as_ref(), token_mint.key().as_ref()],
         bump,
         token::mint = token_mint,
         token::authority = vault_authority,
@@ -94,7 +94,7 @@ pub struct InitializeLaunch<'info> {
     #[account(
         init_if_needed,
         payer = creator,
-        seeds = [TOKEN_VAULT, vault_authority.key().as_ref(), wsol_mint.key().as_ref()],
+        seeds = [TOKEN_VAULT, launch_pool.key().as_ref(), vault_authority.key().as_ref(), wsol_mint.key().as_ref()],
         bump,
         token::mint = wsol_mint,
         token::authority = vault_authority,

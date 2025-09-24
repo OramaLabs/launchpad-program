@@ -36,7 +36,7 @@ pub struct ClaimCreatorTokens<'info> {
     /// Launch pool token vault
     #[account(
         mut,
-        seeds = [TOKEN_VAULT, vault_authority.key().as_ref(), launch_pool.token_mint.as_ref()],
+        seeds = [TOKEN_VAULT, launch_pool.key().as_ref(), vault_authority.key().as_ref(), launch_pool.token_mint.as_ref()],
         bump,
         token::mint = launch_pool.token_mint,
         token::authority = vault_authority,

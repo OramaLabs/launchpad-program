@@ -6,7 +6,7 @@ use anchor_spl::{
 use cp_amm::state::Config;
 use std::u64;
 
-use crate::{const_pda::const_authority::{VAULT_BUMP}, constants::{SQRT_PRICE, TOKEN_VAULT}};
+use crate::{const_pda::const_authority::VAULT_BUMP, constants::{SQRT_PRICE, TOKEN_VAULT}, state::GlobalConfig};
 use crate::constants::{LAUNCH_POOL_SEED, VAULT_AUTHORITY};
 use crate::errors::LaunchpadError;
 use crate::state::{LaunchPool, LaunchStatus};
@@ -14,6 +14,13 @@ use crate::utils::{get_liquidity_for_adding_liquidity};
 
 #[derive(Accounts)]
 pub struct DammV2<'info> {
+    /// Global config account for admin verification
+    #[account(
+        seeds = [b"global_config"],
+        bump,
+    )]
+    pub global_config: Account<'info, GlobalConfig>,
+
     #[account(
         mut,
         seeds = [LAUNCH_POOL_SEED, launch_pool.creator.as_ref(), &launch_pool.index.to_le_bytes()],
@@ -32,7 +39,7 @@ pub struct DammV2<'info> {
 
     #[account(
         mut,
-        seeds = [TOKEN_VAULT, vault_authority.key().as_ref(), base_mint.key().as_ref()],
+        seeds = [TOKEN_VAULT, launch_pool.key().as_ref(), vault_authority.key().as_ref(), base_mint.key().as_ref()],
         bump,
         token::mint = base_mint,
         token::authority = vault_authority,
@@ -41,7 +48,7 @@ pub struct DammV2<'info> {
     pub token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
-        seeds = [TOKEN_VAULT, vault_authority.key().as_ref(), quote_mint.key().as_ref()],
+        seeds = [TOKEN_VAULT, launch_pool.key().as_ref(), vault_authority.key().as_ref(), quote_mint.key().as_ref()],
         bump,
         token::mint = quote_mint,
         token::authority = vault_authority,
@@ -85,8 +92,11 @@ pub struct DammV2<'info> {
     /// CHECK:
     #[account(mut)]
     pub token_b_vault: UncheckedAccount<'info>,
-    /// CHECK: payer
-    #[account(mut)]
+    /// CHECK: payer - must be either launch pool creator or global config admin
+    #[account(
+        mut,
+        constraint = payer.key() == launch_pool.creator || payer.key() == global_config.admin @ LaunchpadError::Unauthorized
+    )]
     pub payer: Signer<'info>,
     /// CHECK: token_program
     pub token_base_program: Interface<'info, TokenInterface>,
