@@ -80,6 +80,7 @@ pub struct InitializeLaunch<'info> {
         bump,
         token::mint = token_mint,
         token::authority = vault_authority,
+        token::token_program = token_program,
     )]
     pub token_vault: Account<'info, TokenAccount>,
 
@@ -151,7 +152,7 @@ pub fn initialize_launch(
     let start_time = params.start_time.unwrap_or(clock.unix_timestamp);
 
     // Validate start_time must be in the future
-    if start_time <= clock.unix_timestamp {
+    if start_time < clock.unix_timestamp {
         return Err(LaunchpadError::InvalidStartTime.into());
     }
 

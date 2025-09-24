@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
 use crate::const_pda::const_authority::VAULT_BUMP;
-use crate::constants::{USER_POSITION_SEED, VAULT_AUTHORITY};
+use crate::constants::{LAUNCH_POOL_SEED, USER_POSITION_SEED, VAULT_AUTHORITY};
 use crate::state::{LaunchPool, LaunchStatus, UserPosition};
 use crate::errors::LaunchpadError;
 use crate::events::{UserRewardsClaimed, UserRefunded};
@@ -24,6 +24,8 @@ pub struct ClaimUserRewards<'info> {
 
     #[account(
         mut,
+        seeds = [LAUNCH_POOL_SEED, launch_pool.creator.as_ref(), &launch_pool.index.to_le_bytes()],
+        bump = launch_pool.bump,
         constraint = launch_pool.status == LaunchStatus::Failed || launch_pool.status == LaunchStatus::Migrated @ LaunchpadError::InvalidStatus,
     )]
     pub launch_pool: Box<Account<'info, LaunchPool>>,
@@ -150,7 +152,6 @@ pub fn claim_user_rewards(ctx: Context<ClaimUserRewards>) -> Result<()> {
 
             // Transfer tokens to user
             if tokens_to_claim > 0 {
-                user_position.refunded = true;
                 token::transfer(
                     CpiContext::new_with_signer(
                         ctx.accounts.token_program.to_account_info(),

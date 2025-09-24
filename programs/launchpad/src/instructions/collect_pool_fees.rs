@@ -5,7 +5,7 @@ use anchor_spl::{
     token_interface::{TokenAccount, TokenInterface},
 };
 
-use crate::{const_pda::const_authority::{POOL_ID, VAULT_BUMP}, constants::{GLOBAL_CONFIG_SEED, VAULT_AUTHORITY}, errors::LaunchpadError, state::{GlobalConfig, LaunchPool}};
+use crate::{const_pda::const_authority::{POOL_ID, VAULT_BUMP}, constants::{GLOBAL_CONFIG_SEED, LAUNCH_POOL_SEED, VAULT_AUTHORITY}, errors::LaunchpadError, state::{GlobalConfig, LaunchPool}};
 
 #[derive(Accounts)]
 pub struct ClaimPositionFee<'info> {
@@ -18,6 +18,8 @@ pub struct ClaimPositionFee<'info> {
 
     #[account(
         mut,
+        seeds = [LAUNCH_POOL_SEED, launch_pool.creator.as_ref(), &launch_pool.index.to_le_bytes()],
+        bump = launch_pool.bump,
         constraint = launch_pool.is_migrated() @ LaunchpadError::NotMigrated,
     )]
     pub launch_pool: Box<Account<'info, LaunchPool>>,

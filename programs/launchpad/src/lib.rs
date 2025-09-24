@@ -64,8 +64,8 @@ pub mod launchpad {
     }
 
     /// Create Meteora liquidity pool after successful launch
-    pub fn create_meteora_pool(ctx: Context<DammV2>, sqrt_price: u128) -> Result<()> {
-        ctx.accounts.create_pool(sqrt_price)
+    pub fn create_meteora_pool(ctx: Context<DammV2>) -> Result<()> {
+        ctx.accounts.create_pool()
     }
 
     /// Claim user rewards (tokens and excess SOL)
@@ -99,7 +99,7 @@ pub mod launchpad {
         instructions::stake_tokens(ctx, params)
     }
 
-    /// Unstake tokens and claim all rewards
+    /// Unstake all tokens and close position
     pub fn unstake_tokens(ctx: Context<UnstakeTokens>) -> Result<()> {
         instructions::unstake_tokens(ctx)
     }

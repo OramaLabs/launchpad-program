@@ -5,10 +5,10 @@ use anchor_lang::solana_program::sysvar;
 use anchor_lang::solana_program::sysvar::instructions::{load_instruction_at_checked, load_current_index_checked};
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
 
-use crate::constants::*;
+use crate::constants::{LAUNCH_POOL_SEED, *};
 use crate::errors::LaunchpadError;
 use crate::state::{GlobalConfig, LaunchPool, UserPoint, UserPosition};
-use crate::utils::{calculate_sol_allowance, check_launch_active, check_time_window, format_points_message, validate_contribution_amount, validate_points_amount, verify_ed25519_ix};
+use crate::utils::{calculate_sol_allowance, check_time_window, format_points_message, validate_contribution_amount, validate_points_amount, verify_ed25519_ix};
 use crate::events::ParticipationEvent;
 
 #[derive(Accounts)]
@@ -41,6 +41,8 @@ pub struct ParticipateWithPoints<'info> {
     /// Launch pool account
     #[account(
         mut,
+        seeds = [LAUNCH_POOL_SEED, launch_pool.creator.as_ref(), &launch_pool.index.to_le_bytes()],
+        bump = launch_pool.bump,
         constraint = launch_pool.is_active() @ LaunchpadError::LaunchNotActive,
     )]
     pub launch_pool: Box<Account<'info, LaunchPool>>,
@@ -98,9 +100,9 @@ pub fn participate_with_points(
     let user_position = &mut ctx.accounts.user_position;
     let user = &ctx.accounts.user;
     let clock = Clock::get()?;
+    user_point.user = user.key();
 
-    // Check launch pool status
-    check_launch_active(launch_pool)?;
+    // Check launch pool time window
     check_time_window(launch_pool, clock.unix_timestamp)?;
 
     let message = format_points_message(&user.key(), points_to_use, total_points, &launch_pool.key());

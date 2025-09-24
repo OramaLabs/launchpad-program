@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
 use crate::const_pda::const_authority::VAULT_BUMP;
-use crate::constants::{TOKEN_VAULT, VAULT_AUTHORITY};
+use crate::constants::{LAUNCH_POOL_SEED, TOKEN_VAULT, VAULT_AUTHORITY};
 use crate::errors::LaunchpadError;
 use crate::state::{LaunchPool, LaunchStatus};
 use crate::events::CreatorTokensClaimed;
@@ -27,6 +27,8 @@ pub struct ClaimCreatorTokens<'info> {
     /// Launch pool account, must be migrated
     #[account(
         mut,
+        seeds = [LAUNCH_POOL_SEED, launch_pool.creator.as_ref(), &launch_pool.index.to_le_bytes()],
+        bump = launch_pool.bump,
         constraint = launch_pool.status == LaunchStatus::Migrated @ LaunchpadError::InvalidStatus,
     )]
     pub launch_pool: Box<Account<'info, LaunchPool>>,

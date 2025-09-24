@@ -44,3 +44,6 @@ pub const MAX_CONTRIBUTION_PER_USER: u64 = 3 * anchor_lang::solana_program::nati
 
 /// Minimum contribution per user
 pub const MIN_CONTRIBUTION_PER_USER: u64 = anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL / 10; // 0.1 SOL
+
+/// sqrt(100000000000/200000000000000) * 2^64
+pub const SQRT_PRICE: u128 = 412481737123559485;
