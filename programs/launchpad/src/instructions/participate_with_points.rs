@@ -71,7 +71,7 @@ pub struct ParticipateWithPoints<'info> {
     /// CHECK: PDA account only for storing SOL
     #[account(
         mut,
-        seeds = [TOKEN_VAULT, vault_authority.key().as_ref(), wsol_mint.key().as_ref()],
+        seeds = [TOKEN_VAULT, launch_pool.key().as_ref(), vault_authority.key().as_ref(), wsol_mint.key().as_ref()],
         bump,
         token::mint = wsol_mint,
         token::authority = vault_authority,

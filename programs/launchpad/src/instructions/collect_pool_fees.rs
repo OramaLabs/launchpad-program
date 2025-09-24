@@ -242,7 +242,7 @@ impl<'info> ClaimPositionFee<'info> {
                     },
                     &[&vault_authority_seeds[..]],
                 ),
-                token_a_half,
+                token_a_claimed.checked_sub(token_a_half).ok_or(LaunchpadError::MathOverflow)?,
             )?;
         }
 
@@ -258,7 +258,7 @@ impl<'info> ClaimPositionFee<'info> {
                     },
                     &[&vault_authority_seeds[..]],
                 ),
-                token_b_half,
+                token_b_claimed.checked_sub(token_b_half).ok_or(LaunchpadError::MathOverflow)?,
             )?;
         }
 
