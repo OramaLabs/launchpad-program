@@ -126,4 +126,11 @@ pub enum LaunchpadError {
 
     #[msg("Invalid lb_pair address")]
     InvalidLbPair,
+
+    // ===== Position Errors =====
+    #[msg("Invalid position account")]
+    InvalidPosition,
+
+    #[msg("Invalid position NFT account")]
+    InvalidPositionNftAccount,
 }

@@ -93,8 +93,14 @@ pub struct LaunchPool {
 
     pub index: u64,
 
+    /// Meteora position account (set after migration)
+    pub position: Option<Pubkey>,
+
+    /// Meteora position NFT account (set after migration)
+    pub position_nft_account: Option<Pubkey>,
+
     /// Reserved space
-    pub reserved: [u64; 12],
+    pub reserved: [u64; 4],
 }
 
 impl LaunchPool {
@@ -125,7 +131,9 @@ impl LaunchPool {
         8 + // creator_unlock_start_time
         8 + // creator_claimed_tokens
         8 + // index
-        8 * 12; // reserved (reduced from 13 to 12)
+        33 + // position (Option<Pubkey>)
+        33 + // position_nft_account (Option<Pubkey>)
+        8 * 4; // reserved (reduced to 4)
 
     /// Check if fundraising is in active status
     pub fn is_active(&self) -> bool {

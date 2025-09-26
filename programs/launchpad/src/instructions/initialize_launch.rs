@@ -203,6 +203,10 @@ pub fn initialize_launch(
     // Initialize statistics
     launch_pool.participants_count = 0;
 
+    // Initialize Meteora fields (will be set after migration)
+    launch_pool.position = None;
+    launch_pool.position_nft_account = None;
+
     // Mint all tokens to vault
     let creator_key = ctx.accounts.creator.key();
     let seeds = &[

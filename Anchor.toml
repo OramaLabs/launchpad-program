@@ -8,7 +8,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-launchpad = "5ZGbULBt41YdhyHNEnAPTe58DgDM4ThGtbBFq7FmkLh5"
+launchpad = "5rmCGbiPqdEfeqRp21W5VbVE9yVT7rNZEhSuEAmPUngk"
 
 [registry]
 url = "https://api.apr.dev"
