@@ -261,6 +261,10 @@ impl<'info> DammV2<'info> {
         let clock = Clock::get()?;
         self.launch_pool.creator_unlock_start_time = clock.unix_timestamp;
 
+        // Set Meteora position fields after successful migration
+        self.launch_pool.position = Some(self.position.key());
+        self.launch_pool.position_nft_account = Some(self.position_nft_account.key());
+
         self.launch_pool.status = LaunchStatus::Migrated;
 
         msg!("Creator token unlock will start at: {}", clock.unix_timestamp);

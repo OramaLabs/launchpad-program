@@ -53,8 +53,11 @@ pub struct ClaimPositionFee<'info> {
     /// CHECK: pool address
     pub pool: UncheckedAccount<'info>,
 
-    /// CHECK: position address
-    #[account(mut)]
+    /// CHECK: position address - verified against launch_pool.position
+    #[account(
+        mut,
+        constraint = position.key() == launch_pool.position.unwrap() @ LaunchpadError::InvalidPosition
+    )]
     pub position: UncheckedAccount<'info>,
 
     /// Treasury token a account
@@ -131,7 +134,10 @@ pub struct ClaimPositionFee<'info> {
     /// CHECK:
     pub token_b_mint: UncheckedAccount<'info>,
 
-    /// CHECK:
+    /// CHECK: position NFT account - verified against launch_pool.position_nft_account
+    #[account(
+        constraint = position_nft_account.key() == launch_pool.position_nft_account.unwrap() @ LaunchpadError::InvalidPositionNftAccount
+    )]
     pub position_nft_account: UncheckedAccount<'info>,
 
     pub token_a_program: Interface<'info, TokenInterface>,

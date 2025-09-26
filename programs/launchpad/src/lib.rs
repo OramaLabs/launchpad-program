@@ -13,7 +13,7 @@ use instructions::*;
 
 declare_program!(dlmm);
 
-declare_id!("5ZGbULBt41YdhyHNEnAPTe58DgDM4ThGtbBFq7FmkLh5");
+declare_id!("5rmCGbiPqdEfeqRp21W5VbVE9yVT7rNZEhSuEAmPUngk");
 
 #[program]
 pub mod launchpad {
