@@ -44,17 +44,12 @@ pub fn validate_contribution_amount(
     amount: u64,
     user_current: u64,
 ) -> Result<()> {
-    require!(
-        amount >= crate::constants::MIN_CONTRIBUTION_PER_USER,
-        LaunchpadError::InvalidContribution
-    );
-
     let total_contribution = user_current
         .checked_add(amount)
         .ok_or(LaunchpadError::MathOverflow)?;
 
     require!(
-        total_contribution <= crate::constants::MAX_CONTRIBUTION_PER_USER,
+        total_contribution >= crate::constants::MIN_CONTRIBUTION_PER_USER && total_contribution <= crate::constants::MAX_CONTRIBUTION_PER_USER,
         LaunchpadError::InvalidContribution
     );
 
