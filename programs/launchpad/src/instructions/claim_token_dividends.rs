@@ -74,6 +74,9 @@ pub struct ClaimTokenDividends<'info> {
     pub system_program: Program<'info, System>,
 }
 
+/// This method distributes dividends calculated off-chain
+/// Sufficient token_mint must be transferred into dividend_vault before distribution
+/// And users must require points_signer's signature to claim dividends
 pub fn claim_token_dividends(
     ctx: Context<ClaimTokenDividends>,
     total_dividend_amount: u64,
