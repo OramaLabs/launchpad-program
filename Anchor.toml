@@ -32,8 +32,12 @@ ledger = ".anchor/test-ledger"
 rpc_port = 8899
 
 [[test.validator.account]]
-address = "DJN8YHxQKZnF7bL2GwuKNB2UcfhKCqRspfLe7YYEN3rr"
+address = "HdqGCsprdhmgqaCXjJzGnKib2SGQvmT9XKYmR7ZjMqmi"
 filename = "genesis/config.json"
+
+[[test.validator.account]]
+address = "3Mntzwtif7X8wJD5dz1EHRJSEqzrTfvEhQqrLmTDxBEy"
+filename = "genesis/private-config.json"
 
 [[test.validator.clone]]
 address = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"

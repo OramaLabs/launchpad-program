@@ -12,6 +12,7 @@ pub mod utils;
 use instructions::*;
 
 declare_program!(dlmm);
+declare_program!(cp_amm);
 
 declare_id!("5rmCGbiPqdEfeqRp21W5VbVE9yVT7rNZEhSuEAmPUngk");
 
