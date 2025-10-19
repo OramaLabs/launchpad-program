@@ -47,3 +47,17 @@ pub const MIN_CONTRIBUTION_PER_USER: u64 = anchor_lang::solana_program::native_t
 
 /// sqrt(100000000000/200000000000000) * 2^64
 pub const SQRT_PRICE: u128 = 412481737123559485;
+
+// ===== Pool Price Range =====
+/// Minimum sqrt price for damm_v2 pool
+pub const MIN_SQRT_PRICE: u128 = 4295048016;
+
+/// Maximum sqrt price for damm_v2 pool
+pub const MAX_SQRT_PRICE: u128 = 79226673521066979257578248091;
+
+// ===== Fee Configuration =====
+/// Fee denominator (1 billion)
+pub const FEE_DENOMINATOR: u64 = 1_000_000_000;
+
+/// Max basis point (10000 = 100%)
+pub const MAX_BASIS_POINT: u64 = 10_000;

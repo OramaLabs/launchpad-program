@@ -5,7 +5,7 @@ use anchor_spl::{
     token_interface::{TokenAccount, TokenInterface},
 };
 
-use crate::{const_pda::const_authority::{POOL_ID, VAULT_BUMP}, constants::{GLOBAL_CONFIG_SEED, LAUNCH_POOL_SEED, VAULT_AUTHORITY}, errors::LaunchpadError, state::{GlobalConfig, LaunchPool}};
+use crate::{const_pda::const_authority::{POOL_ID, VAULT_BUMP}, constants::{GLOBAL_CONFIG_SEED, LAUNCH_POOL_SEED, VAULT_AUTHORITY}, cp_amm, errors::LaunchpadError, state::{GlobalConfig, LaunchPool}};
 
 #[derive(Accounts)]
 pub struct ClaimPositionFee<'info> {
@@ -184,7 +184,7 @@ impl<'info> ClaimPositionFee<'info> {
         cp_amm::cpi::claim_position_fee(
             CpiContext::new_with_signer(
                 self.amm_program.to_account_info(),
-                cp_amm::cpi::accounts::ClaimPositionFeeCtx {
+                cp_amm::cpi::accounts::ClaimPositionFee {
                     pool_authority: self.pool_authority.to_account_info(),
                     pool: self.pool.to_account_info(),
                     position: self.position.to_account_info(),

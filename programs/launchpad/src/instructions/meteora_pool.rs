@@ -3,10 +3,12 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token_interface::{TokenAccount, TokenInterface},
 };
-use cp_amm::state::Config;
+use cp_amm::types::{
+    BaseFeeParameters, InitializeCustomizablePoolParameters, PoolFeeParameters,
+};
 use std::u64;
 
-use crate::{const_pda::const_authority::VAULT_BUMP, constants::{SQRT_PRICE, TOKEN_VAULT}, state::GlobalConfig};
+use crate::{const_pda::const_authority::VAULT_BUMP, constants::{FEE_DENOMINATOR, MAX_BASIS_POINT, MAX_SQRT_PRICE, MIN_SQRT_PRICE, SQRT_PRICE, TOKEN_VAULT}, cp_amm, state::GlobalConfig};
 use crate::constants::{LAUNCH_POOL_SEED, VAULT_AUTHORITY};
 use crate::errors::LaunchpadError;
 use crate::state::{LaunchPool, LaunchStatus};
@@ -55,8 +57,8 @@ pub struct DammV2<'info> {
         token::token_program = token_quote_program
     )]
     pub wsol_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-    /// CHECK: pool config
-    pub pool_config: AccountLoader<'info, Config>,
+    /// CHECK: pool config (cp_amm Config)
+    pub pool_config: UncheckedAccount<'info>,
     /// CHECK: pool
     #[account(mut)]
     pub pool: UncheckedAccount<'info>,
@@ -116,15 +118,12 @@ impl<'info> DammV2<'info> {
         let base_amount: u64 = self.launch_pool.liquidity_allocation;
         let quote_amount: u64 = self.launch_pool.liquidity_sol;
 
-        // Load config first to get price bounds
-        let config = self.pool_config.load()?;
-
         // Calculate fair sqrt_price based on actual token amounts
         let sqrt_price = SQRT_PRICE;
 
         // Validate calculated sqrt_price is within reasonable bounds
         require!(
-            sqrt_price >= config.sqrt_min_price && sqrt_price <= config.sqrt_max_price,
+            sqrt_price >= MIN_SQRT_PRICE && sqrt_price <= MAX_SQRT_PRICE,
             LaunchpadError::InvalidAmount
         );
 
@@ -132,19 +131,52 @@ impl<'info> DammV2<'info> {
             base_amount,
             quote_amount,
             sqrt_price,
-            config.sqrt_min_price,
-            config.sqrt_max_price,
+            MIN_SQRT_PRICE,
+            MAX_SQRT_PRICE,
         )?;
 
+        // Calculate 1.5% fee numerator
+        // 1.5% = 150 BPS
+        // numerator = 150 * FEE_DENOMINATOR / MAX_BASIS_POINT
+        let base_fee_numerator = (150u128 * FEE_DENOMINATOR as u128 / MAX_BASIS_POINT as u128) as u64;
+
+        // Create fee parameters
+        let base_fee = BaseFeeParameters {
+            cliff_fee_numerator: base_fee_numerator,
+            ..Default::default()
+        };
+
+        let pool_fees = PoolFeeParameters {
+            base_fee,
+            protocol_fee_percent: 0,
+            partner_fee_percent: 0,
+            referral_fee_percent: 0,
+            dynamic_fee: None, // Fixed fee, no dynamic fee
+        };
+
+        // Create initialization parameters
+        let initialize_pool_params = InitializeCustomizablePoolParameters {
+            pool_fees,
+            sqrt_min_price: MIN_SQRT_PRICE,
+            sqrt_max_price: MAX_SQRT_PRICE,
+            has_alpha_vault: false,
+            liquidity,
+            sqrt_price,
+            activation_type: 1, // timestamp
+            collect_fee_mode: 0, // default mode
+            activation_point: None,
+        };
+
         let signer_seeds: &[&[&[u8]]] = &[&[VAULT_AUTHORITY, &[VAULT_BUMP]]];
-        cp_amm::cpi::initialize_pool(
+        cp_amm::cpi::initialize_pool_with_dynamic_config(
             CpiContext::new_with_signer(
                 self.amm_program.to_account_info(),
-                cp_amm::cpi::accounts::InitializePoolCtx {
+                cp_amm::cpi::accounts::InitializePoolWithDynamicConfig {
                     creator: self.vault_authority.to_account_info(),
                     position_nft_mint: self.position_nft_mint.to_account_info(),
                     position_nft_account: self.position_nft_account.to_account_info(),
                     payer: self.vault_authority.to_account_info(),
+                    pool_creator_authority: self.vault_authority.to_account_info(),
                     config: self.pool_config.to_account_info(),
                     pool_authority: self.damm_pool_authority.to_account_info(),
                     pool: self.pool.to_account_info(),
@@ -164,17 +196,13 @@ impl<'info> DammV2<'info> {
                 },
                 signer_seeds,
             ),
-            cp_amm::InitializePoolParameters {
-                liquidity,
-                sqrt_price,
-                activation_point: None,
-            },
+            initialize_pool_params,
         )?;
 
         cp_amm::cpi::permanent_lock_position(
             CpiContext::new_with_signer(
                 self.amm_program.to_account_info(),
-                cp_amm::cpi::accounts::PermanentLockPositionCtx {
+                cp_amm::cpi::accounts::PermanentLockPosition {
                     pool: self.pool.to_account_info(),
                     position: self.position.to_account_info(),
                     position_nft_account: self.position_nft_account.to_account_info(),
