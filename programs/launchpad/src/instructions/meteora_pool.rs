@@ -11,6 +11,7 @@ use std::u64;
 use crate::{const_pda::const_authority::VAULT_BUMP, constants::{FEE_DENOMINATOR, MAX_BASIS_POINT, MAX_SQRT_PRICE, MIN_SQRT_PRICE, SQRT_PRICE, TOKEN_VAULT}, cp_amm, state::GlobalConfig};
 use crate::constants::{LAUNCH_POOL_SEED, VAULT_AUTHORITY};
 use crate::errors::LaunchpadError;
+use crate::events::LiquidityPoolCreated;
 use crate::state::{LaunchPool, LaunchStatus};
 use crate::utils::{get_liquidity_for_adding_liquidity};
 
@@ -298,6 +299,18 @@ impl<'info> DammV2<'info> {
         msg!("Creator token unlock will start at: {}", clock.unix_timestamp);
         msg!("Lock duration: {} days", self.launch_pool.creator_lock_duration / (24 * 3600));
         msg!("Linear unlock duration: {} days", self.launch_pool.creator_linear_unlock_duration / (24 * 3600));
+
+        // Emit liquidity pool created event
+        emit!(LiquidityPoolCreated {
+            launch_pool: self.launch_pool.key(),
+            meteora_pool: self.pool.key(),
+            token_mint: self.base_mint.key(),
+            quote_mint: self.quote_mint.key(),
+            token_amount: actual_token_used,
+            sol_amount: actual_sol_used,
+            lp_token_mint: self.position_nft_mint.key(),
+            timestamp: clock.unix_timestamp,
+        });
 
         Ok(())
     }
