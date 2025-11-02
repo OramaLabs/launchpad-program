@@ -279,3 +279,24 @@ pub struct DividendClaimed {
     /// Claim timestamp
     pub timestamp: i64,
 }
+
+// =============================================================================
+// LIQUIDITY LOCK EVENTS
+// =============================================================================
+
+/// Event emitted when liquidity is locked in Meteora pool
+#[event]
+pub struct LiquidityLocked {
+    /// Launch pool address
+    pub launch_pool: Pubkey,
+    /// Meteora position account
+    pub position: Pubkey,
+    /// Meteora pool account
+    pub pool: Pubkey,
+    /// Amount of liquidity locked
+    pub locked_amount: u128,
+    /// Admin who performed the lock
+    pub admin: Pubkey,
+    /// Lock timestamp
+    pub timestamp: i64,
+}

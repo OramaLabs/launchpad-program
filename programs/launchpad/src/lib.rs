@@ -69,6 +69,11 @@ pub mod launchpad {
         ctx.accounts.create_pool()
     }
 
+    /// Lock liquidity in Meteora pool (admin only)
+    pub fn lock_liquidity(ctx: Context<LockLiquidity>, liquidity_amount: u128) -> Result<()> {
+        instructions::handle_lock_liquidity(ctx, liquidity_amount)
+    }
+
     /// Claim user rewards (tokens and excess SOL)
     pub fn claim_user_rewards(ctx: Context<ClaimUserRewards>) -> Result<()> {
         instructions::claim_user_rewards(ctx)

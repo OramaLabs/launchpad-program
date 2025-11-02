@@ -1,6 +1,6 @@
 [toolchain]
 anchor_version = "0.31.1"
-solana_version = "2.2.21"
+solana_version = "2.3.13"
 package_manager = "pnpm"
 
 [features]
@@ -21,7 +21,7 @@ wallet = "~/.config/solana/id.json"
 test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/test.ts"
 
 [test]
-startup_wait = 5000
+startup_wait = 10000
 shutdown_wait = 2000
 upgradeable = false
 
